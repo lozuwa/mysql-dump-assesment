@@ -67,7 +67,7 @@ while getopts c:d:p:e option; do
   c) CREDENTIALS_PATH=${OPTARG} ;;
   d) DATABASE_NAME=${OPTARG} ;;
   p) PATH_TO_DUMP=${OPTARG} ;;
-  e) help ;;
+  h) help ;;
   esac
 done
 if [[ ! -f "${CREDENTIALS_PATH}" ]]; then
