@@ -27,8 +27,9 @@ help() {
 backup() {
   # Notes:
   #  - Have a readable date in the name of the dumped files in the format e.g: DBNAME_03-13-2022-1647228430_FULL.sql.gz
-  FULL_BACKUP_FILENAME="$(echo $3)_$(date +"%m-%d-%Y")-$(date +%s)_FULL.sql.gz"
-  MINIMIZED_BACKUP_FILENAME="$(echo $3)_$(date +"%m-%d-%Y")-$(date +%s)_MINIMIZED.sql.gz"
+  FILENAME="$(echo $3)_$(date +"%m-%d-%Y")-$(date +%s)"
+  FULL_BACKUP_FILENAME="${FILENAME}_FULL.sql.gz"
+  MINIMIZED_BACKUP_FILENAME="${FILENAME}_MINIMIZED.sql.gz"
   # Mysqldump notes:
   #   - --opt enabled by default. Produces reloadable dump.
   #   - --quick Reduces memory usage by avoiding memory buffer of all tables. Instead it grabs a row at a time.
@@ -42,20 +43,19 @@ backup() {
   #     - Dump all table data except log_.* prefixed tables to minimized gzip file.
   #     - Append minimized backup gzip to full backup gzip.
   #     - Add log_.* prefixed tables to full backup gzip.
-  table_names=($(mysql -BN --user=$1 --password=$2 -e "select table_name from information_schema.tables where table_schema=\"$3\" and table_name like \"log_%\";"))
-  ignore_command=""
-  for table_name in "${table_names[@]}"; do
-    ignore_command+="--ignore-table=$3.${table_name} "
-  done;
-
   echo "Dumping data schemas."
   mysqldump --no-data --user=$1 --password=$2 $3 | gzip > "${FULL_BACKUP_FILENAME}"
   mysqldump --no-data --user=$1 --password=$2 $3 | gzip > "${MINIMIZED_BACKUP_FILENAME}"
 
   echo "Dumping all data except log_.* prefix tables."
+  table_names=($(mysql -BN --user=$1 --password=$2 -e "select table_name from information_schema.tables where table_schema=\"$3\" and table_name like \"log_%\";"))
+  ignore_command=""
+  for table_name in "${table_names[@]}"; do
+    ignore_command+="--ignore-table=$3.${table_name} "
+  done;
   echo "Ignoring tables ${ignore_command}"
-  mysqldump --no-create-info "${ignore_command}" --opt --quick --single-transaction --user=$1 --password=$2 $3 | gzip >> "${MINIMIZED_BACKUP_FILENAME}"
-  cat "${MINIMIZED_BACKUP_FILENAME}" >> "${FULL_BACKUP_FILENAME}"
+  mysqldump --no-create-info --opt --quick --single-transaction --user=$1 --password=$2 $3 ${ignore_command} | gzip >> "${MINIMIZED_BACKUP_FILENAME}"
+  cp "${MINIMIZED_BACKUP_FILENAME}" "${FULL_BACKUP_FILENAME}"
 
   echo "Adding log_.* prefix tables to full backup."
   for table_name in "${table_names[@]}"; do
